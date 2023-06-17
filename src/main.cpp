@@ -4,163 +4,127 @@
 
 #include <cstdio>
 
+//Creation des timers
+Timer tGame; //duree de la partie en cours
 Timer tBuzz1;
-Timer tDisable1;
+Timer tDisable1; //duree pendant laquelle le joueur 1 perd le controle
 Timer tBuzz2;
-Timer tDisable2;
+Timer tDisable2; //duree pendant laquelle le joueur 2 perd le controle
 
+//Recuperation des valeurs analogiques
 AnalogIn val0(A0);
 AnalogIn val1(A1);
-PwmOut val2(A2);
+
+PwmOut val2(A2); //signal PWM du buzzer
 
 ThreadLvgl threadLvgl(30);
 ThreadLedsNeo threadLeds(D12, 5);
 
-//lv_obj_t * bar1 ;
-//lv_obj_t * bar2 ;
-lv_obj_t * label ;
-lv_obj_t * label1 ;
-lv_obj_t * label2 ;
-lv_obj_t * btn1;
-lv_obj_t * btn2;
+//Objets LVGL
+lv_obj_t * label ; // label permettant d'ecrire le texte a la creation des boutons
+lv_obj_t * label1 ; // label affichant le score du joueur 1
+lv_obj_t * label2 ; // label affichant le score du joueur 2
+lv_obj_t * labelTime ; // label affichant le compte a rebours de la partie
+lv_obj_t * labelData ; // lable affichant qui a gagne
 
-static int input1 = 0;
-static int input2 = 0;
+lv_obj_t * btn1; // bouton d'action du joueur 1
+lv_obj_t * btn2; // bouton d'action du joueur 2
+lv_obj_t * btnStart; // bouton commencant la partie
 
-static int ledChosen1 = 0;
-static int ledChosen2 = 0;
+//Variables static
+static int seconds = 0; // duree de la partie en cours
+static int mSeconds = 0; // duree de la partie en cours
 
-static int objective1 = rand()%5;
-static int objective2 = rand()%5;
+static int inGame = 0; // booleen indiquant si une partie est en cours
+static int pl1Disabled = 0; // booleen indiquant si le joueur 1 perd le controle
+static int pl2Disabled = 0; // booleen indiquant si le joueur 2 perd le controle
 
-static int pl1Disabled = 0;
-static int pl2Disabled = 0;
+static int ledChosen1 = 0; // Led choisie par le joueur 1
+static int ledChosen2 = 0; // Led choisie par le joueur 2
 
-static int scorepPl1 = 0;
-static int scorepPl2 = 0;
+static int objective1 = rand()%5; // Led que le joueur 1 doit selectionner
+static int objective2 = rand()%5; // Led que le joueur 2 doit selectionner
 
-/*
-void lv_bar1(void)
-{
-    static lv_style_t style_indic;
+static int scorepPl1 = 0; //Score du joueur 1
+static int scorepPl2 = 0; //Score du joueur 2
 
-    lv_style_init(&style_indic);
-    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
-    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_RED));
-    lv_style_set_bg_grad_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
-    lv_style_set_bg_grad_dir(&style_indic, LV_GRAD_DIR_VER);
-
-    bar1 = lv_bar_create(lv_scr_act());
-    lv_obj_add_style(bar1, &style_indic, LV_PART_INDICATOR);
-    lv_obj_set_size(bar1, 20, 200);
-    lv_obj_center(bar1);
-    lv_bar_set_range(bar1, 0, 100);
-    lv_obj_set_x(bar1, -100);
-
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_time(&a, 3000);
-    lv_anim_set_playback_time(&a, 3000);
-    lv_anim_set_var(&a, bar1);
-    lv_anim_set_values(&a, 0, 100);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-}
-
-void lv_bar2(void)
-{
-    static lv_style_t style_indic;
-
-    lv_style_init(&style_indic);
-    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
-    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_RED));
-    lv_style_set_bg_grad_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
-    lv_style_set_bg_grad_dir(&style_indic, LV_GRAD_DIR_VER);
-
-    bar2 = lv_bar_create(lv_scr_act());
-    lv_obj_add_style(bar2, &style_indic, LV_PART_INDICATOR);
-    lv_obj_set_size(bar2, 20, 200);
-    lv_obj_center(bar2);
-    lv_bar_set_range(bar2, 0, 100);
-    lv_obj_set_x(bar2, 100);
-
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_time(&a, 3000);
-    lv_anim_set_playback_time(&a, 3000);
-    lv_anim_set_var(&a, bar2);
-    lv_anim_set_values(&a, 0, 100);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-}
-*/
-
-void lv_label_score1(void)
+void lv_label_score1(void) // label affichant le score du joueur 1
 {
     label1 = lv_label_create(lv_scr_act());
     lv_label_set_long_mode(label1, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
-    lv_label_set_recolor(label1, true);                      /*Enable re-coloring by commands in the text*/
-    lv_label_set_text(label1, "#0000ff Re-color# #ff00ff words# #ff0000 of a# label, align the lines to the center "
-                      "and wrap long text automatically.");
-    lv_obj_set_width(label1, 80);  /*Set smaller width to make the lines wrap*/
+    lv_label_set_text(label1, "...");
+    lv_obj_set_width(label1, 80);
     lv_obj_set_style_text_align(label1, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(label1, LV_ALIGN_CENTER, -150, -105);
+    lv_obj_align(label1, LV_ALIGN_CENTER, -180, 105); //position du label
 }
 
-void lv_label_score2(void)
+void lv_label_score2(void) // label affichant le score du joueur 2
 {
     label2 = lv_label_create(lv_scr_act());
-    lv_label_set_long_mode(label2, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
-    lv_label_set_recolor(label2, true);                      /*Enable re-coloring by commands in the text*/
-    lv_label_set_text(label2, "#0000ff Re-color# #ff00ff words# #ff0000 of a# label, align the lines to the center "
-                      "and wrap long text automatically.");
-    lv_obj_set_width(label2, 80);  /*Set smaller width to make the lines wrap*/
+    lv_label_set_long_mode(label2, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(label2, "...");
+    lv_obj_set_width(label2, 80);
     lv_obj_set_style_text_align(label2, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(label2, LV_ALIGN_CENTER, 150, -105);
-    lv_obj_set_x(label2, 170);
+    lv_obj_align(label2, LV_ALIGN_CENTER, 172, 105);
 }
 
-static void event_handler1(lv_event_t * e)
+void lv_labelTime(void) // label affichant le compte a rebours de la partie
+{
+    labelTime = lv_label_create(lv_scr_act());
+    lv_label_set_long_mode(labelTime, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(labelTime, "...");
+    lv_obj_set_width(labelTime, 80); 
+    lv_obj_set_style_text_align(labelTime, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_align(labelTime, LV_ALIGN_CENTER, 112, 105);
+}
+
+void lv_labelData(void) // lable affichant qui a gagne
+{
+    labelData = lv_label_create(lv_scr_act());
+    lv_label_set_long_mode(labelData, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(labelData, "...");
+    lv_obj_set_width(labelData, 300);
+    lv_obj_set_style_text_align(labelData, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(labelData, LV_ALIGN_CENTER, 0, 75);
+}
+
+static void event_handler1(lv_event_t * e) // gestion de l'event si le joueur 1 fait une action
 {
     int n = 0;
     lv_event_code_t code = lv_event_get_code(e);
-
-    input1 = 0;
-    if(code == LV_EVENT_PRESSED) {
-        LV_LOG_USER("Clicked");
+    if(code == LV_EVENT_PRESSED) { // si le bouton d'action a ete presse
 
         tBuzz1.start();
         //val2.pulsewidth(0.2f);
 
-        if(ledChosen1==(objective1+2))
+        if(ledChosen1==(objective1+2)) // si le joueur 1 a choisi la bonne Led
         {
             for(n=0;n<5;n++)
             {
                 threadLeds.setLed(n, 0,255,0);
+            } // bref flash des Leds du joueur 1 en vert
+            scorepPl1++; // un point en plus
+
+            int exObjective1 = objective1;
+            do {
+                objective1 = rand()%5;
             }
-            scorepPl1++;
-            objective1 = rand()%5;
+            while (objective1==exObjective1); //nouvelle Led que le joueur 1 doit selectionner
         }
         else
         {
             tDisable1.start();
             lv_obj_clear_flag(btn1,LV_OBJ_FLAG_CLICKABLE);
-            pl1Disabled = 1;
+            pl1Disabled = 1; // le joueur 1 perd le controle
         }
-
-        input1 = 1;
-        printf("%d\n",input1);
     }
 }
 
-static void event_handler2(lv_event_t * e)
+static void event_handler2(lv_event_t * e) // gestion de l'event si le joueur 2 fait une action
 {
     int n = 0;
     lv_event_code_t code = lv_event_get_code(e);
-
-    input2 = 0;
     if(code == LV_EVENT_PRESSED) {
-        LV_LOG_USER("Clicked");
 
         tBuzz2.start();
         //val2.pulsewidth(0.2f);
@@ -172,7 +136,12 @@ static void event_handler2(lv_event_t * e)
                 threadLeds.setLed(n, 0,255,0);
             }
             scorepPl2++;
-            objective2 = rand()%5;
+
+            int exObjective2 = objective2;
+            do {
+                objective2 = rand()%5;
+            }
+            while (objective2==exObjective2);  
         }
         else
         {
@@ -180,50 +149,77 @@ static void event_handler2(lv_event_t * e)
             lv_obj_clear_flag(btn2,LV_OBJ_FLAG_CLICKABLE);
             pl2Disabled = 1;
         }
-
-        input2 = 1;
-        printf("%d\n",input2);
     }
 }
 
-void lv_btn1(void)
+static void event_handler3(lv_event_t * e) // gestion de l'event si on veut commencer une partie
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_PRESSED) {
+        scorepPl1 = 0;
+        scorepPl2 = 0; // score renitialise
+        lv_label_set_text(labelData, "..."); // changement du texte affichant le vainqueur
+
+        tGame.start(); // Commencement du timer compte a rebours de la partie
+        if(!inGame)
+        {
+            //Activation des boutons d'action des joueurs
+            lv_obj_add_flag(btn1,LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_flag(btn2,LV_OBJ_FLAG_CLICKABLE);
+        }
+        lv_obj_clear_flag(btnStart,LV_OBJ_FLAG_CLICKABLE); // desactivation du bouton pour demarrer une partie quand il y en a une en cours
+        inGame = 1; // une partie est en cours
+    }
+}
+
+void lv_btn1(void) // bouton d'action du joueur 1
 {
     btn1 = lv_btn_create(lv_scr_act());
-    lv_obj_add_event_cb(btn1, event_handler1, LV_EVENT_PRESSED, &btn1);
-    lv_obj_set_size(btn1, 220, 200);
-    lv_obj_align(btn1, LV_ALIGN_CENTER, -115, 20);
+    lv_obj_add_event_cb(btn1, event_handler1, LV_EVENT_PRESSED, &btn1); // le bouton est relie a sa gestion d'event codee plus haut
+    lv_obj_set_size(btn1, 220, 180); //taille
+    lv_obj_align(btn1, LV_ALIGN_CENTER, -120, -40); //position
 
-    label = lv_label_create(btn1);
-    lv_label_set_text(label, "Action pl1");
+    label = lv_label_create(btn1); // appel au label utilise pour les textes des boutons
+    lv_label_set_text(label, "Action pl1"); // texte sur le bouton
     lv_obj_center(label);
 }
 
-void lv_btn2(void)
+void lv_btn2(void) // bouton d'action du joueur 2
 {
     btn2 = lv_btn_create(lv_scr_act());
     lv_obj_add_event_cb(btn2, event_handler2, LV_EVENT_PRESSED, &btn2);
-    lv_obj_set_size(btn2, 220, 200);
-    lv_obj_align(btn2, LV_ALIGN_CENTER, 115, 20);
+    lv_obj_set_size(btn2, 220, 180);
+    lv_obj_align(btn2, LV_ALIGN_CENTER, 120, -40);
 
     label = lv_label_create(btn2);
     lv_label_set_text(label, "Action pl2");
     lv_obj_center(label);
 }
 
-int main() {
+void lv_btnStart(void) // bouton commencant la partie
+{
+    btnStart = lv_btn_create(lv_scr_act());
+    lv_obj_add_event_cb(btnStart, event_handler3, LV_EVENT_PRESSED, &btnStart);
+    lv_obj_set_size(btnStart, 180, 40);
+    lv_obj_align(btnStart, LV_ALIGN_CENTER, -35, 108);
 
+    label = lv_label_create(btnStart);
+    lv_label_set_text(label, "Commencer");
+    lv_obj_center(label);
+}
+
+int main() {
+    //Initialisation
     threadLvgl.lock();
 
-    //lv_demo_widgets();
-
-    //lv_bar1();
-    //lv_bar2();
+    lv_btnStart();
+    lv_btn1();
+    lv_btn2();
 
     lv_label_score1();
     lv_label_score2();
-
-    lv_btn1();
-    lv_btn2();
+    lv_labelTime();
+    lv_labelData();
 
     val2.period_ms(50);
     val2.pulsewidth(0);
@@ -237,23 +233,20 @@ int main() {
 
     while (1) {
         // put your main code here, to run repeatedly:
-
-        //Recuperation des valeurs des capteurs
-
         if(tDisable1.read_ms()>1000)
         {
             pl1Disabled = 0;
 
             lv_obj_add_flag(btn1,LV_OBJ_FLAG_CLICKABLE);
 
-            tDisable1.reset();
             tDisable1.stop();
+            tDisable1.reset();
         }
         if(tBuzz1.read_ms()>200)
         {
             val2.pulsewidth(0);
-            tBuzz1.reset();
             tBuzz1.stop();
+            tBuzz1.reset();
         }
 
         if(tDisable2.read_ms()>1000)
@@ -262,35 +255,24 @@ int main() {
 
             lv_obj_add_flag(btn2,LV_OBJ_FLAG_CLICKABLE);
 
-            tDisable2.reset();
             tDisable2.stop();
+            tDisable2.reset();
         }
         if(tBuzz2.read_ms()>200)
         {
             val2.pulsewidth(0);
-            tBuzz2.reset();
             tBuzz2.stop();
+            tBuzz2.reset();
         }
 
+        //Recuperation des valeurs des capteurs
         capt1 = val1.read() * 100;
         capt2 = val0.read() * 100;
-
-        //Log
-        printf("%d\n",capt1);
-        printf("%d\n",capt2);
-        printf("%d\n",input1);
-        printf("%d\n",input2);
-        printf("%d\n",objective1);
-        printf("%d\n",objective2);
 
         //Debut des actions relatives aux threads
         threadLvgl.lock();
 
-        //Creation des jauges de pression appliquees
-        //lv_bar_set_value(bar1, capt1, LV_ANIM_ON);
-        //lv_bar_set_value(bar2, capt2, LV_ANIM_ON);
-
-        //Partie de la grestiion des Leds:
+        //Partie de la gestion des Leds:
         
         //Initialisation des Leds a 0
         for(n=1;n<=30;n++)
@@ -298,62 +280,78 @@ int main() {
             threadLeds.setLed(n, 0,0,0);
         }
 
-        //gestion des Leds a atteindre
-        threadLeds.setLed(1+objective1, 0,255,0);
-        threadLeds.setLed(11-objective2, 0,255,0);
-
-        if(!pl1Disabled)
+        if(inGame)
         {
-            //Le 1er capteur de pression allume progressivement les 5 1eres Leds
-            for(n=1;n<(1+capt1/100.0*5);n++)
+            //gestion des Leds a atteindre
+            threadLeds.setLed(1+objective1, 0,255,0);
+            threadLeds.setLed(11-objective2, 0,255,0);
+
+            if(!pl1Disabled)
             {
-                if(objective1==(n-1)) threadLeds.setLed(n, 0,255,125);
-                else threadLeds.setLed(n, 0,0,255);
+                //Le 1er capteur de pression allume progressivement les 5 1eres Leds
+                for(n=1;n<(1+capt1/100.0*5);n++)
+                {
+                    if(objective1==(n-1)) threadLeds.setLed(n, 0,255,125);
+                    else threadLeds.setLed(n, 0,0,255);
+                }
+                ledChosen1 = n;
             }
-            ledChosen1 = n;
+            else
+            {
+                for(n=1;n<6;n++)
+                {
+                    threadLeds.setLed(n, 255,0,0);
+                }
+            }
+
+            if(!pl2Disabled)
+            {
+                //Le 1er capteur de pression allume progressivement les 5 1eres Leds
+                for(n=11;n>(11-capt2/100.0*5);n--)
+                {
+                    if(objective2==(11-n)) threadLeds.setLed(n, 0,255,125);
+                    else threadLeds.setLed(n, 0,0,255);
+                }
+                ledChosen2 = n;
+            }
+            else
+            {
+                for(n=11;n>6;n--)
+                {
+                    threadLeds.setLed(n, 255,0,0);
+                }
+            }
+
+            if(tGame.read_ms()>20000)
+            {
+                tGame.stop();
+                tGame.reset();
+
+                mSeconds = 0;
+                seconds = 0;
+                inGame = 0;
+
+                lv_obj_add_flag(btnStart,LV_OBJ_FLAG_CLICKABLE);
+
+                if(scorepPl1>scorepPl2) lv_label_set_text_fmt(labelData, "LE JOUEUR 1 A GAGNE !");
+                else if(scorepPl1<scorepPl2) lv_label_set_text_fmt(labelData, "LE JOUEUR 2 A GAGNE !");
+                else if(scorepPl1==scorepPl2) lv_label_set_text_fmt(labelData, "EGALITE !");
+            }
         }
         else
         {
-            for(n=1;n<6;n++)
-            {
-                threadLeds.setLed(n, 255,0,0);
-            }
+            lv_obj_clear_flag(btn1,LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_clear_flag(btn2,LV_OBJ_FLAG_CLICKABLE);
         }
-
-        if(!pl2Disabled)
-        {
-            //Le 1er capteur de pression allume progressivement les 5 1eres Leds
-            for(n=11;n>(11-capt2/100.0*5);n--)
-            {
-                if(objective2==(11-n)) threadLeds.setLed(n, 0,255,125);
-                else threadLeds.setLed(n, 0,0,255);
-            }
-            ledChosen2 = n;
-        }
-        else
-        {
-            for(n=11;n>6;n--)
-            {
-                threadLeds.setLed(n, 255,0,0);
-            }
-        }
-
-        /*if(input1==1)
-        {
-            for(n=0;n<5;n++)
-            {
-                threadLeds.setLed(n, 255,0,0);
-            }
-        }*/
-
-        /*
-        if(capt1>20) val2.pulsewidth(0.2f);
-        else val2.pulsewidth(0);
-        */
 
        lv_label_set_text_fmt(label1, "Score joueur 1 : %"LV_PRId32, scorepPl1);
        lv_label_set_text_fmt(label2, "Score joueur 2 : %"LV_PRId32, scorepPl2);
 
+       mSeconds = (1000 - (tGame.read_ms() % 1000)) - 1 % 1000;
+       seconds = 19 - (tGame.read_ms() / 1000);
+       
+       lv_label_set_text_fmt(labelTime, "%02d:%03d", seconds,mSeconds);
+       
         threadLvgl.unlock();
         ThisThread::sleep_for(100ms);
     }
