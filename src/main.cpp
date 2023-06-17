@@ -237,7 +237,124 @@ int main() {
 
     while (1) {
         // put your main code here, to run repeatedly:
-        ThisThread::sleep_for(10ms);
+
+        //Recuperation des valeurs des capteurs
+
+        if(tDisable1.read_ms()>1000)
+        {
+            pl1Disabled = 0;
+
+            lv_obj_add_flag(btn1,LV_OBJ_FLAG_CLICKABLE);
+
+            tDisable1.reset();
+            tDisable1.stop();
+        }
+        if(tBuzz1.read_ms()>200)
+        {
+            val2.pulsewidth(0);
+            tBuzz1.reset();
+            tBuzz1.stop();
+        }
+
+        if(tDisable2.read_ms()>1000)
+        {
+            pl2Disabled = 0;
+
+            lv_obj_add_flag(btn2,LV_OBJ_FLAG_CLICKABLE);
+
+            tDisable2.reset();
+            tDisable2.stop();
+        }
+        if(tBuzz2.read_ms()>200)
+        {
+            val2.pulsewidth(0);
+            tBuzz2.reset();
+            tBuzz2.stop();
+        }
+
+        capt1 = val1.read() * 100;
+        capt2 = val0.read() * 100;
+
+        //Log
+        printf("%d\n",capt1);
+        printf("%d\n",capt2);
+        printf("%d\n",input1);
+        printf("%d\n",input2);
+        printf("%d\n",objective1);
+        printf("%d\n",objective2);
+
+        //Debut des actions relatives aux threads
+        threadLvgl.lock();
+
+        //Creation des jauges de pression appliquees
+        //lv_bar_set_value(bar1, capt1, LV_ANIM_ON);
+        //lv_bar_set_value(bar2, capt2, LV_ANIM_ON);
+
+        //Partie de la grestiion des Leds:
+        
+        //Initialisation des Leds a 0
+        for(n=1;n<=30;n++)
+        {
+            threadLeds.setLed(n, 0,0,0);
+        }
+
+        //gestion des Leds a atteindre
+        threadLeds.setLed(1+objective1, 0,255,0);
+        threadLeds.setLed(11-objective2, 0,255,0);
+
+        if(!pl1Disabled)
+        {
+            //Le 1er capteur de pression allume progressivement les 5 1eres Leds
+            for(n=1;n<(1+capt1/100.0*5);n++)
+            {
+                if(objective1==(n-1)) threadLeds.setLed(n, 0,255,125);
+                else threadLeds.setLed(n, 0,0,255);
+            }
+            ledChosen1 = n;
+        }
+        else
+        {
+            for(n=1;n<6;n++)
+            {
+                threadLeds.setLed(n, 255,0,0);
+            }
+        }
+
+        if(!pl2Disabled)
+        {
+            //Le 1er capteur de pression allume progressivement les 5 1eres Leds
+            for(n=11;n>(11-capt2/100.0*5);n--)
+            {
+                if(objective2==(11-n)) threadLeds.setLed(n, 0,255,125);
+                else threadLeds.setLed(n, 0,0,255);
+            }
+            ledChosen2 = n;
+        }
+        else
+        {
+            for(n=11;n>6;n--)
+            {
+                threadLeds.setLed(n, 255,0,0);
+            }
+        }
+
+        /*if(input1==1)
+        {
+            for(n=0;n<5;n++)
+            {
+                threadLeds.setLed(n, 255,0,0);
+            }
+        }*/
+
+        /*
+        if(capt1>20) val2.pulsewidth(0.2f);
+        else val2.pulsewidth(0);
+        */
+
+       lv_label_set_text_fmt(label1, "Score joueur 1 : %"LV_PRId32, scorepPl1);
+       lv_label_set_text_fmt(label2, "Score joueur 2 : %"LV_PRId32, scorepPl2);
+
+        threadLvgl.unlock();
+        ThisThread::sleep_for(100ms);
     }
 }
-
